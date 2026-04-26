@@ -146,11 +146,11 @@ def getPlan():
 
         for part in parts:
 
-            matching_exercises = df[df["body_part_raw"] == part].values.tolist()
+            matching_exercises = df[df["body_part_raw"] == part].to_dict('records')
             instruct_exer = []
 
             for matching_exercise in matching_exercises:
-                instruct_exer.append(getExerciseById(matching_exercise[0]))
+                instruct_exer.append(getExerciseById(matching_exercise['id']) | matching_exercise)
 
             matching_exercises = instruct_exer
 
