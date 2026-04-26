@@ -2,6 +2,7 @@ from http import HTTPStatus
 
 import pandas as pd
 from flask import Flask, request
+from flask_cors import CORS
 import json
 from flask import Response
 
@@ -17,11 +18,11 @@ legs = ['upper legs', 'lower legs', 'waist']
 equipment = ["body weight", "cable", "leverage machine", "assisted", "medicine ball", "stability ball", "band", "barbell", "rope", "dumbbell", "ez barbell", "sled machine", "upper body ergometer", "kettlebell", "olympic barbell", "weighted", "bosu ball", "resistance band", "roller", "skierg machine", "hammer", "smith machine", "wheel roller", "stationary bike", "tire", "trap bar", "elliptical machine", "stepmill machine"]
 df = unFilteredDf
 app = Flask(__name__)
-
+CORS(app, origins=["http://localhost:3000"])
 with open("user.json") as file:
     userDict = json.loads(file.read())
 
-@app.route("/", methods=['GET', 'POST'])
+@app.route("/api/schedule", methods=['GET', 'POST'])
 def getPlan():
 
     json = request.json
@@ -138,7 +139,8 @@ def displayExerciseById(id):
 
     return exercise.to_dict()
 
-
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
 
 
 
