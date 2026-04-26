@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { getSelectedSetsAndReps } from "./scheduleResponseUtils";
-import type { DisplayDay } from "./schedulePlannerTypes";
+import type { DisplayDay, DisplayExercise } from "./schedulePlannerTypes";
 
 type SchedulePreviewCarouselProps = {
   days: DisplayDay[];
@@ -12,7 +13,15 @@ export function SchedulePreviewCarousel({
   difficulty,
 }: SchedulePreviewCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [instructionOverlay, setInstructionOverlay] = useState<{
+    dayLabel: string;
+    exercise: DisplayExercise;
+  } | null>(null);
+  const [isOverlayActive, setIsOverlayActive] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const overlayCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   const getCardElements = () => {
     const container = scrollRef.current;
@@ -49,6 +58,39 @@ export function SchedulePreviewCarousel({
     }
   }, [days]);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOverlayActive(false);
+        setInstructionOverlay(null);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (overlayCloseTimerRef.current) {
+        clearTimeout(overlayCloseTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!instructionOverlay) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [instructionOverlay]);
+
   const scrollToDay = (index: number) => {
     const cards = getCardElements();
     if (cards.length === 0) {
@@ -58,6 +100,36 @@ export function SchedulePreviewCarousel({
     const clamped = Math.max(0, Math.min(index, cards.length - 1));
     scrollCardIntoCenter(cards[clamped], "smooth");
     setActiveIndex(clamped);
+  };
+
+  const openInstructionOverlay = (
+    dayLabel: string,
+    exercise: DisplayExercise,
+  ) => {
+    if (overlayCloseTimerRef.current) {
+      clearTimeout(overlayCloseTimerRef.current);
+      overlayCloseTimerRef.current = null;
+    }
+
+    setInstructionOverlay({ dayLabel, exercise });
+    setIsOverlayActive(false);
+
+    requestAnimationFrame(() => {
+      setIsOverlayActive(true);
+    });
+  };
+
+  const closeInstructionOverlay = () => {
+    setIsOverlayActive(false);
+
+    if (overlayCloseTimerRef.current) {
+      clearTimeout(overlayCloseTimerRef.current);
+    }
+
+    overlayCloseTimerRef.current = setTimeout(() => {
+      setInstructionOverlay(null);
+      overlayCloseTimerRef.current = null;
+    }, 220);
   };
 
   const handleScroll = () => {
@@ -162,12 +234,12 @@ export function SchedulePreviewCarousel({
               {day.exercises.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-cyan-200/30 bg-cyan-200/5 p-5 text-center">
                   <p className="text-sm font-medium text-cyan-100">
-                    No exercises scheduled for this rest day. ☆(≧▽≦)☆ Go play
-                    some games or hang out.
+                    No exercises scheduled for this day. ☆(≧▽≦)☆ Go play some
+                    games or hang out.
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {day.exercises.map((exercise, exerciseIndex) => {
                     const selectedPlan = getSelectedSetsAndReps(
                       exercise,
@@ -175,9 +247,13 @@ export function SchedulePreviewCarousel({
                     );
 
                     return (
-                      <div
+                      <button
                         key={`${day.dayIndex}-${exercise.id}-${exerciseIndex}`}
-                        className="rounded-2xl border border-white/15 bg-black/35 p-3"
+                        type="button"
+                        onClick={() =>
+                          openInstructionOverlay(day.label, exercise)
+                        }
+                        className="w-full cursor-pointer rounded-2xl border border-white/15 bg-black/35 p-3 text-left transition-all duration-300 hover:-translate-y-1 hover:border-cyan-200/55 hover:bg-black/50 hover:shadow-[0_16px_30px_-18px_rgba(103,232,249,0.9)] active:scale-[0.99]"
                       >
                         <p className="text-sm font-semibold text-white capitalize">
                           {exercise.name}
@@ -212,29 +288,10 @@ export function SchedulePreviewCarousel({
                           </span>
                         </div>
 
-                        <div className="mt-3 rounded-xl border border-white/10 bg-black/25 p-2.5">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100/85">
-                            Instructions
-                          </p>
-                          {exercise.instructions.length > 0 ? (
-                            <ol className="mt-1.5 list-decimal space-y-1 pl-4 text-xs text-slate-200">
-                              {exercise.instructions.map(
-                                (instruction, instructionIndex) => (
-                                  <li
-                                    key={`${exercise.id}-instruction-${instructionIndex}`}
-                                  >
-                                    {instruction}
-                                  </li>
-                                ),
-                              )}
-                            </ol>
-                          ) : (
-                            <p className="mt-1.5 text-xs text-slate-300">
-                              No instructions available.
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                        <p className="mt-3 text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
+                          Tap for instructions
+                        </p>
+                      </button>
                     );
                   })}
                 </div>
@@ -257,6 +314,65 @@ export function SchedulePreviewCarousel({
           ))}
         </div>
       </div>
+
+      {instructionOverlay && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className={`fixed inset-0 z-999 bg-black/70 backdrop-blur-sm transition-opacity duration-200 ${
+                isOverlayActive ? "opacity-100" : "opacity-0"
+              }`}
+              onClick={closeInstructionOverlay}
+            >
+              <div className="flex min-h-dvh items-center justify-center p-4">
+                <div
+                  className={`w-full max-w-2xl rounded-2xl border border-white/20 bg-slate-950/95 p-4 shadow-2xl shadow-black/40 transition-all duration-200 sm:p-5 ${
+                    isOverlayActive
+                      ? "translate-y-0 scale-100 opacity-100"
+                      : "translate-y-5 scale-95 opacity-0"
+                  }`}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.18em] text-cyan-100/85">
+                        {instructionOverlay.dayLabel}
+                      </p>
+                      <h5 className="mt-1 text-lg font-semibold capitalize text-white">
+                        {instructionOverlay.exercise.name}
+                      </h5>
+                    </div>
+                    <button
+                      type="button"
+                      className="cursor-pointer rounded-lg border border-white/20 px-2.5 py-1 text-xs text-white transition hover:bg-white/10"
+                      onClick={closeInstructionOverlay}
+                    >
+                      Close
+                    </button>
+                  </div>
+
+                  {instructionOverlay.exercise.instructions.length > 0 ? (
+                    <ol className="max-h-[60vh] list-decimal space-y-2 overflow-y-auto pr-2 pl-5 text-sm text-slate-100">
+                      {instructionOverlay.exercise.instructions.map(
+                        (instruction, instructionIndex) => (
+                          <li
+                            key={`${instructionOverlay.exercise.id}-overlay-${instructionIndex}`}
+                          >
+                            {instruction}
+                          </li>
+                        ),
+                      )}
+                    </ol>
+                  ) : (
+                    <p className="text-sm text-slate-300">
+                      No instructions available.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </section>
   );
 }
