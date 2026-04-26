@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   equipmentOptions,
   exerciseOptions,
@@ -39,33 +39,45 @@ export function ScheduleForm({
   dayPlans,
   setDayPlans,
 }: ScheduleFormProps) {
+  const bodyweightOnlyEquipment = ["body weight"];
 
   // Single source of truth for form state
-  
+
   const [form, setForm] = useState<SchedulePayload>({
-    equipment: [],
+    equipment:
+      selectedEquipment.length > 0
+        ? selectedEquipment
+        : bodyweightOnlyEquipment,
     difficulty: "",
-    muscleGroups: ["chest",
-                  "shoulders",
-                  "back",
-                  "upper arms",
-                  "lower arms",
-                  "neck",
-                  "upper legs",
-                  "lower legs",
-                  "waist",
-                  "cardio",],
+    muscleGroups: [
+      "chest",
+      "shoulders",
+      "back",
+      "upper arms",
+      "lower arms",
+      "neck",
+      "upper legs",
+      "lower legs",
+      "waist",
+      "cardio",
+    ],
     durationMinutes: [30, 30, 30, 30, 30, null, null],
   });
 
+  useEffect(() => {
+    setForm((prev) => ({
+      ...prev,
+      equipment:
+        hasEquipment === "no" ? bodyweightOnlyEquipment : selectedEquipment,
+    }));
+  }, [hasEquipment, selectedEquipment]);
 
-    type SchedulePayload = {
-      equipment: string[];
-      difficulty: string;
-      muscleGroups: string[];
-      durationMinutes: (number | null)[]; // length 7
-    };
-
+  type SchedulePayload = {
+    equipment: string[];
+    difficulty: string;
+    muscleGroups: string[];
+    durationMinutes: (number | null)[]; // length 7
+  };
 
   // ...existing code...
   const updateDayTimeByMinutes = (day: DayName, deltaMinutes: number) => {
@@ -130,8 +142,12 @@ export function ScheduleForm({
     const dayIndex = weekDays.indexOf(day);
     if (dayIndex !== -1) {
       setForm((prev) => {
-        let hours = field === "hours" ? Number(nextValue) : Number(dayPlans[day].hours);
-        let minutes = field === "minutes" ? Number(nextValue) : Number(dayPlans[day].minutes);
+        let hours =
+          field === "hours" ? Number(nextValue) : Number(dayPlans[day].hours);
+        let minutes =
+          field === "minutes"
+            ? Number(nextValue)
+            : Number(dayPlans[day].minutes);
         hours = isNaN(hours) ? 0 : hours;
         minutes = isNaN(minutes) ? 0 : minutes;
         const total = hours * 60 + minutes;
@@ -163,7 +179,10 @@ export function ScheduleForm({
   return (
     <form
       className="animate-rise-delay space-y-6 rounded-4xl border border-white/20 bg-black/45 p-5 shadow-2xl shadow-black/40 backdrop-blur-md sm:p-8"
-      onSubmit={e => { e.preventDefault(); handleCreateSchedule(); }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleCreateSchedule();
+      }}
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -202,9 +221,6 @@ export function ScheduleForm({
                   onChange={(event) => {
                     const nextValue = event.target.value;
                     setHasEquipment(nextValue);
-                    if (nextValue === "no") {
-                      setSelectedEquipment(["body weight"]);
-                    }
                   }}
                   className="peer sr-only"
                 />
@@ -233,20 +249,17 @@ export function ScheduleForm({
                   >
                     <input
                       type="checkbox"
-                      checked={form.equipment.includes(item)}
+                      checked={selectedEquipment.includes(item)}
                       onChange={(event) => {
-                        setForm((prev) => {
-                          let updated: string[];
-                          if (event.target.checked) {
-                            updated = prev.equipment.includes(item)
-                              ? prev.equipment
-                              : [...prev.equipment, item];
-                          } else {
-                            updated = prev.equipment.filter((selected) => selected !== item);
-                          }
-                          return { ...prev, equipment: updated };
-                        });
-                        // Optionally sync with setSelectedEquipment if needed
+                        const updated = event.target.checked
+                          ? selectedEquipment.includes(item)
+                            ? selectedEquipment
+                            : [...selectedEquipment, item]
+                          : selectedEquipment.filter(
+                              (selected) => selected !== item,
+                            );
+
+                        setSelectedEquipment(updated);
                       }}
                       className="peer sr-only"
                     />
@@ -285,7 +298,12 @@ export function ScheduleForm({
                   name="fitnessLevel"
                   value={value}
                   checked={form.difficulty === value}
-                  onChange={(event) => setForm((prev) => ({ ...prev, difficulty: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      difficulty: event.target.value,
+                    }))
+                  }
                   className="peer sr-only"
                 />
                 <span className="flex h-5 w-5 items-center justify-center rounded-md border border-white/30 bg-black/40 text-transparent transition peer-checked:border-cyan-200 peer-checked:bg-cyan-300 peer-checked:text-slate-950">
@@ -436,7 +454,9 @@ export function ScheduleForm({
                           ? prev.muscleGroups
                           : [...prev.muscleGroups, exercise];
                       } else {
-                        updated = prev.muscleGroups.filter((selected) => selected !== exercise);
+                        updated = prev.muscleGroups.filter(
+                          (selected) => selected !== exercise,
+                        );
                       }
                       return { ...prev, muscleGroups: updated };
                     });
