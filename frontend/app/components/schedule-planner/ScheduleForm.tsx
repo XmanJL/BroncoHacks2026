@@ -286,7 +286,7 @@ export function ScheduleForm({
         <div className="grid gap-2 sm:grid-cols-2">
           {[
             ["yes", "Yes"],
-            ["no", "No, show specific focus areas to select"],
+            ["no", "No, I want to target specific areas"],
           ].map(([value, label]) => (
             <label
               key={value}
@@ -321,7 +321,7 @@ export function ScheduleForm({
 
         {targetAllBodyParts === "yes" ? (
           <div className="rounded-2xl border border-emerald-300/35 bg-emerald-300/10 px-4 py-3 text-sm text-emerald-100">
-            This will balance training across: {exerciseOptions.join(", ")}.
+            This will balance training across all body parts.
           </div>
         ) : null}
 
