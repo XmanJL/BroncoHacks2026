@@ -3,12 +3,18 @@
 ## Hackathon Project for BroncoHacks Spring 2026: BillyFit's Planner
 Creates a Personalized Fitness Schedule Based on:
   Equipment Available
+ 
   Experience with Exercise
+  
   Times Available
+  
   What Muscle Groups to Target
+
 Fitness Schedule Gives:
   What exercise to do
+
   Amount of reps and time
+  
   Instructions to how to do the exercise
 
 ## Attribution
