@@ -1,7 +1,7 @@
 from http import HTTPStatus
 
 import pandas as pd
-from flask import Flask
+from flask import Flask, request
 import json
 from flask import Response
 
@@ -14,29 +14,40 @@ lowerBodyParts = ['waist', 'upper legs', 'lower legs', 'cardio']
 push = ['chest', 'shoulders', 'upper arms']
 pull = ['back', 'upper arms', 'lower arms', 'neck']
 legs = ['upper legs', 'lower legs', 'waist']
-
+equipment = ["body weight", "cable", "leverage machine", "assisted", "medicine ball", "stability ball", "band", "barbell", "rope", "dumbbell", "ez barbell", "sled machine", "upper body ergometer", "kettlebell", "olympic barbell", "weighted", "bosu ball", "resistance band", "roller", "skierg machine", "hammer", "smith machine", "wheel roller", "stationary bike", "tire", "trap bar", "elliptical machine", "stepmill machine"]
 df = unFilteredDf
 app = Flask(__name__)
 
 with open("user.json") as file:
     userDict = json.loads(file.read())
 
-@app.route("/user/<level>/<dayCount>")
-def getPlan(level, dayCount):
-    dayCount = int(dayCount)
+@app.route("/", methods=['GET', 'POST'])
+def getPlan():
+
+    json = request.json
+
+    level = json["difficulty"]
+
+    muscleGroups = json["muscleGroups"]
+    equipment = json["equipment"]
+
+    dfMuscle = unFilteredDf[unFilteredDf["body_part_group"].isin(muscleGroups)]
+    dfEquip = dfMuscle[dfMuscle["equipment_group"].isin(equipment)]
+
+    dayCount = len(json["durationMinutes"])
 
     # Filter by level
     if level == 'beginner':
-        df = unFilteredDf[unFilteredDf["experience_min"] == "beginner"]
+        df = dfEquip[unFilteredDf["experience_min"] == "beginner"]
     elif level == 'intermediate':
-        df = unFilteredDf[
-            (unFilteredDf["experience_min"] == "intermediate") |
-            (unFilteredDf["experience_min"] == "beginner")
+        df = dfEquip[
+            (dfEquip["experience_min"] == "intermediate") |
+            (dfEquip["experience_min"] == "beginner")
             ]
     elif level == 'advanced':
-        df = unFilteredDf
+        df = dfEquip
     else:
-        df = unFilteredDf
+        df = dfEquip
 
     # Create 1D array of day objects
     exercises = [{"day": i + 1, "exercises": []} for i in range(dayCount)]
@@ -75,6 +86,21 @@ def getPlan(level, dayCount):
         add_parts_to_day(2, legs)
         add_parts_to_day(3, upperBodyParts)
         add_parts_to_day(4, lowerBodyParts)
+    elif dayCount == 6:
+        add_parts_to_day(0, push)
+        add_parts_to_day(1, pull)
+        add_parts_to_day(2, legs)
+        add_parts_to_day(3, upperBodyParts)
+        add_parts_to_day(4, lowerBodyParts)
+        add_parts_to_day(5, push)
+    elif dayCount == 7:
+        add_parts_to_day(0, push)
+        add_parts_to_day(1, pull)
+        add_parts_to_day(2, legs)
+        add_parts_to_day(3, upperBodyParts)
+        add_parts_to_day(4, lowerBodyParts)
+        add_parts_to_day(5, push)
+        add_parts_to_day(6, pull)
 
     return exercises
 
