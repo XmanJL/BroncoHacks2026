@@ -6,7 +6,7 @@ import json
 from flask import Response
 
 unFilteredDf = pd.read_csv("exercises_cleaned.csv")
-
+unCleanedDf = pd.read_csv("exercises.csv")
 
 fullBodyParts = [
     'waist',
@@ -94,6 +94,12 @@ app = Flask(__name__)
 with open("user.json") as file:
     userDict = json.loads(file.read())
 
+def getExerciseById(id):
+    exerciseId = int(id)
+    exercise = unCleanedDf[unCleanedDf["id"] == exerciseId].fillna(value='-1').to_dict()
+    return exercise
+
+
 @app.route("/", methods=['GET', 'POST'])
 def getPlan():
 
@@ -140,14 +146,21 @@ def getPlan():
 
         for part in parts:
 
-            print(part)
             matching_exercises = df[df["body_part_raw"] == part].values.tolist()
+            instruct_exer = []
+
+            for matching_exercise in matching_exercises:
+                instruct_exer.append(getExerciseById(matching_exercise[0]))
+
+            matching_exercises = instruct_exer
 
             if len(matching_exercises) > 3:
                 for i in range(3):
-                    exercises[day_index]["exercises"].append(matching_exercises[i])
+                    exercises[day_index]["exercises"].append((matching_exercises[i]))
             else:
-                exercises[day_index]["exercises"].extend(matching_exercises)
+                for i in range(len(matching_exercises)):
+                    exercises[day_index]["exercises"].append(matching_exercises[i])
+
 
     if dayCount == 1:
         add_parts_to_day(exerciseDays[0], lowerBodyParts)
@@ -221,12 +234,11 @@ def getUserLevels():
 @app.route("/exercise/<id>")
 def displayExerciseById(id):
     exerciseId = int(id)
-    exercise = df[df["id"] == exerciseId]
-
-    return exercise.to_dict()
+    exercise = unCleanedDf[unCleanedDf["id"] == exerciseId].fillna(value='-1').to_dict()
+    print(type(exercise))
+    return exercise
 
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
-
 
