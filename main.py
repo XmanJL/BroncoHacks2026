@@ -4,6 +4,7 @@ import pandas as pd
 from flask import Flask, request
 import json
 from flask import Response
+from flask_cors import CORS
 
 unFilteredDf = pd.read_csv("exercises_cleaned.csv")
 unCleanedDf = pd.read_csv("exercises.csv")
@@ -89,6 +90,7 @@ equipment = [
 
 df = unFilteredDf
 app = Flask(__name__)
+CORS(app, origins=["http://localhost:3000"])
 
 
 with open("user.json") as file:
@@ -110,7 +112,7 @@ def getPlan():
     equipment = json["equipment"]
 
     dfMuscle = unFilteredDf[unFilteredDf["body_part_group"].isin(muscleGroups)]
-    dfEquip = dfMuscle[dfMuscle["equipment_group"].isin(equipment)]
+    dfEquip = dfMuscle[dfMuscle["equipment_raw"].isin(equipment)]
 
     days = json["durationMinutes"]
 
@@ -209,7 +211,7 @@ def searchByBodyPart(bodyPart, equipment):
 
     filteredByBodyPart = df[df["body_part_group"] == bodyPart]
 
-    json = filteredByBodyPart[filteredByBodyPart["equipment_group"] == equipment].to_json(orient='records', lines=True)
+    json = filteredByBodyPart[filteredByBodyPart["equipment_raw"] == equipment].to_json(orient='records', lines=True)
     return json
 
 

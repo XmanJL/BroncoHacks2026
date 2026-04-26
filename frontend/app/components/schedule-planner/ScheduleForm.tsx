@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   equipmentOptions,
   exerciseOptions,
@@ -8,6 +8,9 @@ import {
   type ExerciseOption,
   weekDays,
 } from "./scheduleData";
+import { SchedulePreviewCarousel } from "./SchedulePreviewCarousel";
+import { getBackendDays, toDisplayDay } from "./scheduleResponseUtils";
+import type { DisplayDay, SchedulePayload } from "./schedulePlannerTypes";
 import { TimeStepper } from "./TimeStepper";
 
 type ScheduleFormProps = {
@@ -40,6 +43,18 @@ export function ScheduleForm({
   setDayPlans,
 }: ScheduleFormProps) {
   const bodyweightOnlyEquipment = ["body weight"];
+  const [schedulePreview, setSchedulePreview] = useState<DisplayDay[]>([]);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<{
+    equipmentChoice?: string;
+    equipmentList?: string;
+    fitness?: string;
+    bodyPlanChoice?: string;
+    specificBodyParts?: string;
+  }>({});
+  const equipmentSectionRef = useRef<HTMLFieldSetElement | null>(null);
+  const fitnessSectionRef = useRef<HTMLFieldSetElement | null>(null);
+  const bodyPlanSectionRef = useRef<HTMLFieldSetElement | null>(null);
 
   // Single source of truth for form state
 
@@ -71,13 +86,6 @@ export function ScheduleForm({
         hasEquipment === "no" ? bodyweightOnlyEquipment : selectedEquipment,
     }));
   }, [hasEquipment, selectedEquipment]);
-
-  type SchedulePayload = {
-    equipment: string[];
-    difficulty: string;
-    muscleGroups: string[];
-    durationMinutes: (number | null)[]; // length 7
-  };
 
   // ...existing code...
   const updateDayTimeByMinutes = (day: DayName, deltaMinutes: number) => {
@@ -158,21 +166,107 @@ export function ScheduleForm({
     }
   };
 
+  const validateForm = () => {
+    const nextErrors: {
+      equipmentChoice?: string;
+      equipmentList?: string;
+      fitness?: string;
+      bodyPlanChoice?: string;
+      specificBodyParts?: string;
+    } = {};
+
+    if (hasEquipment !== "yes" && hasEquipment !== "no") {
+      nextErrors.equipmentChoice =
+        "Please choose whether you have equipment available.";
+    }
+
+    if (hasEquipment === "yes" && selectedEquipment.length === 0) {
+      nextErrors.equipmentList =
+        "Please select at least one available equipment option.";
+    }
+
+    if (!form.difficulty) {
+      nextErrors.fitness = "Please choose your fitness level.";
+    }
+
+    if (targetAllBodyParts !== "yes" && targetAllBodyParts !== "no") {
+      nextErrors.bodyPlanChoice =
+        "Please choose if you want a balanced or specific body-part plan.";
+    }
+
+    if (targetAllBodyParts === "no" && form.muscleGroups.length === 0) {
+      nextErrors.specificBodyParts =
+        "Please select at least one specific body part.";
+    }
+
+    setFormErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      if (nextErrors.equipmentChoice || nextErrors.equipmentList) {
+        equipmentSectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      } else if (nextErrors.fitness) {
+        fitnessSectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      } else if (nextErrors.bodyPlanChoice || nextErrors.specificBodyParts) {
+        bodyPlanSectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+    }
+
+    return Object.keys(nextErrors).length === 0;
+  };
+
   // Handler for Create Schedule button
   const handleCreateSchedule = async () => {
+    if (!validateForm()) {
+      setScheduleError(null);
+      setSchedulePreview([]);
+      return;
+    }
+
     // Log the payload for debugging
     console.log("Sending schedule payload:", form);
     try {
-      const response = await fetch("http://localhost:5000/api/schedule", {
+      const response = await fetch("http://localhost:5000/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
+
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+
       const data = await response.json();
       console.log("Backend response:", data);
-      // Optionally, show a success message or handle errors here
+
+      const backendDays = getBackendDays(data);
+      const displayDays = backendDays
+        .map((day) => toDisplayDay(day, form.durationMinutes))
+        .sort((a, b) => a.calendarDayIndex - b.calendarDayIndex);
+
+      if (displayDays.length === 0) {
+        setScheduleError(
+          "The schedule response was empty or in an unexpected format.",
+        );
+        setSchedulePreview([]);
+        return;
+      }
+
+      setScheduleError(null);
+      setFormErrors({});
+      setSchedulePreview(displayDays);
     } catch (error) {
       console.error("Error sending schedule:", error);
+      setScheduleError("Could not create a schedule. Please try again.");
+      setSchedulePreview([]);
     }
   };
 
@@ -195,9 +289,12 @@ export function ScheduleForm({
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <fieldset className="space-y-3 rounded-3xl border border-white/15 bg-white/5 p-4 transition hover:bg-white/[0.07]">
-          <legend className="px-1 text-sm font-medium text-white">
+      <div className="grid gap-6 lg:grid-cols-1">
+        <fieldset
+          ref={equipmentSectionRef}
+          className="order-2 space-y-3 rounded-3xl border border-white/15 bg-white/5 p-4 transition hover:bg-white/[0.07]"
+        >
+          <legend className="px-1 text-sm uppercase tracking-[0.22em] text-cyan-100/90">
             Do you have equipment?
           </legend>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -231,51 +328,76 @@ export function ScheduleForm({
               </label>
             ))}
           </div>
-
-          {hasEquipment === "yes" ? (
-            <div className="space-y-3 pt-2">
-              <p className="text-xs uppercase tracking-[0.22em] text-slate-300">
-                Equipment available
-              </p>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {equipmentOptions.map((item) => (
-                  <label
-                    key={item}
-                    className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-3 py-2 text-sm capitalize transition ${
-                      form.equipment.includes(item)
-                        ? "border-amber-300/60 bg-amber-300/15 text-white"
-                        : "border-white/15 bg-black/30 text-slate-200 hover:border-white/30"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedEquipment.includes(item)}
-                      onChange={(event) => {
-                        const updated = event.target.checked
-                          ? selectedEquipment.includes(item)
-                            ? selectedEquipment
-                            : [...selectedEquipment, item]
-                          : selectedEquipment.filter(
-                              (selected) => selected !== item,
-                            );
-
-                        setSelectedEquipment(updated);
-                      }}
-                      className="peer sr-only"
-                    />
-                    <span className="flex h-5 w-5 items-center justify-center rounded-md border border-white/30 bg-black/40 text-transparent transition peer-checked:border-amber-200 peer-checked:bg-amber-300 peer-checked:text-slate-950">
-                      ✓
-                    </span>
-                    <span>{item}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
+          {formErrors.equipmentChoice ? (
+            <p className="text-xs text-rose-200">
+              {formErrors.equipmentChoice}
+            </p>
           ) : null}
+
+          <div
+            className={`space-y-3 pt-2 transition ${
+              hasEquipment === "yes" ? "opacity-100" : "opacity-45"
+            }`}
+          >
+            <p className="text-xs uppercase tracking-[0.22em] text-cyan-100/90">
+              Equipment available
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {equipmentOptions.map((item) => (
+                <label
+                  key={item}
+                  className={`flex items-center gap-3 rounded-2xl border px-3 py-2 text-sm capitalize transition ${
+                    hasEquipment === "yes"
+                      ? "cursor-pointer"
+                      : "cursor-not-allowed"
+                  } ${
+                    form.equipment.includes(item)
+                      ? "border-amber-300/60 bg-amber-300/15 text-white"
+                      : "border-white/15 bg-black/30 text-slate-200 hover:border-white/30"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedEquipment.includes(item)}
+                    disabled={hasEquipment !== "yes"}
+                    onChange={(event) => {
+                      const updated = event.target.checked
+                        ? selectedEquipment.includes(item)
+                          ? selectedEquipment
+                          : [...selectedEquipment, item]
+                        : selectedEquipment.filter(
+                            (selected) => selected !== item,
+                          );
+
+                      setSelectedEquipment(updated);
+                    }}
+                    className="peer sr-only"
+                  />
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md border border-white/30 bg-black/40 text-transparent transition peer-checked:border-amber-200 peer-checked:bg-amber-300 peer-checked:text-slate-950">
+                    ✓
+                  </span>
+                  <span>{item}</span>
+                </label>
+              ))}
+            </div>
+            {hasEquipment !== "yes" ? (
+              <p className="text-xs text-slate-300/90">
+                Equipment options are locked in bodyweight mode.
+              </p>
+            ) : null}
+            {formErrors.equipmentList ? (
+              <p className="text-xs text-rose-200">
+                {formErrors.equipmentList}
+              </p>
+            ) : null}
+          </div>
         </fieldset>
 
-        <fieldset className="space-y-3 rounded-3xl border border-white/15 bg-white/5 p-4 transition hover:bg-white/[0.07]">
-          <legend className="px-1 text-sm font-medium text-white">
+        <fieldset
+          ref={fitnessSectionRef}
+          className="order-1 space-y-3 rounded-3xl border border-white/15 bg-white/5 p-4 transition hover:bg-white/[0.07]"
+        >
+          <legend className="px-1 text-sm uppercase tracking-[0.22em] text-cyan-100/90">
             How fit do you consider yourself?
           </legend>
           <div className="grid gap-2">
@@ -312,55 +434,67 @@ export function ScheduleForm({
               </label>
             ))}
           </div>
+          {formErrors.fitness ? (
+            <p className="text-xs text-rose-200">{formErrors.fitness}</p>
+          ) : null}
         </fieldset>
       </div>
 
-      <fieldset className="space-y-3 rounded-3xl border border-white/15 bg-white/5 p-4 transition hover:bg-white/[0.07]">
-        <legend className="px-1 text-sm font-medium text-white">
+      <fieldset
+        ref={bodyPlanSectionRef}
+        className="space-y-3 rounded-3xl border border-white/15 bg-white/5 p-4 transition hover:bg-white/[0.07]"
+      >
+        <legend className="px-1 text-sm uppercase tracking-[0.22em] text-cyan-100/90">
           How much time do you have on each applicable day?
         </legend>
         <div className="grid gap-3">
           {weekDays.map((day) => (
             <div
               key={day}
-              className="grid items-center gap-3 rounded-2xl border border-white/15 bg-black/30 px-4 py-3 sm:grid-cols-[80px_1fr] lg:grid-cols-[90px_1fr_320px]"
+              className={`grid items-center gap-3 rounded-2xl border px-4 py-3 transition sm:grid-cols-[80px_1fr] lg:grid-cols-[90px_1fr_320px] ${
+                dayPlans[day].active
+                  ? "border-cyan-300/45 bg-cyan-300/10"
+                  : "border-white/15 bg-black/30"
+              }`}
             >
               <div className="font-medium text-white">{day}</div>
-              <label className="flex items-center gap-3 text-sm text-slate-200">
-                <input
-                  type="checkbox"
-                  checked={dayPlans[day].active}
-                  onChange={(event) => {
-                    const checked = event.target.checked;
-                    setDayPlans({
-                      ...dayPlans,
-                      [day]: {
-                        ...dayPlans[day],
-                        active: checked,
-                      },
-                    });
-                    // Update durationMinutes in form
-                    const dayIndex = weekDays.indexOf(day);
-                    setForm((prev) => {
-                      const updated = [...prev.durationMinutes];
-                      if (!checked) {
-                        updated[dayIndex] = null;
-                      } else {
-                        // Default to current hours/minutes or 0 if not set
-                        const hours = Number(dayPlans[day].hours) || 0;
-                        const minutes = Number(dayPlans[day].minutes) || 0;
-                        updated[dayIndex] = hours * 60 + minutes;
-                      }
-                      return { ...prev, durationMinutes: updated };
-                    });
-                  }}
-                  className="peer sr-only"
-                />
-                <span className="flex h-5 w-5 items-center justify-center rounded-md border border-white/30 bg-black/40 text-transparent transition peer-checked:border-cyan-200 peer-checked:bg-cyan-300 peer-checked:text-slate-950">
-                  ✓
-                </span>
-                Available
-              </label>
+              <div className="flex items-center gap-3 text-sm text-slate-200">
+                <div className="relative h-5 w-5">
+                  <input
+                    type="checkbox"
+                    checked={dayPlans[day].active}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      setDayPlans({
+                        ...dayPlans,
+                        [day]: {
+                          ...dayPlans[day],
+                          active: checked,
+                        },
+                      });
+                      // Update durationMinutes in form
+                      const dayIndex = weekDays.indexOf(day);
+                      setForm((prev) => {
+                        const updated = [...prev.durationMinutes];
+                        if (!checked) {
+                          updated[dayIndex] = null;
+                        } else {
+                          // Default to current hours/minutes or 0 if not set
+                          const hours = Number(dayPlans[day].hours) || 0;
+                          const minutes = Number(dayPlans[day].minutes) || 0;
+                          updated[dayIndex] = hours * 60 + minutes;
+                        }
+                        return { ...prev, durationMinutes: updated };
+                      });
+                    }}
+                    className="peer absolute inset-0 z-10 h-5 w-5 cursor-pointer opacity-0"
+                  />
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md border border-white/30 bg-black/40 text-transparent transition peer-checked:border-cyan-200 peer-checked:bg-cyan-300 peer-checked:text-slate-950">
+                    ✓
+                  </span>
+                </div>
+                <span>Available</span>
+              </div>
 
               <div className="flex items-center gap-3 lg:justify-self-end">
                 <span className="text-xs uppercase tracking-[0.2em] text-slate-300">
@@ -387,7 +521,7 @@ export function ScheduleForm({
       </fieldset>
 
       <fieldset className="space-y-3 rounded-3xl border border-white/15 bg-white/5 p-4 transition hover:bg-white/[0.07]">
-        <legend className="px-1 text-sm font-medium text-white">
+        <legend className="px-1 text-sm uppercase tracking-[0.22em] text-cyan-100/90">
           Do you want a balanced plan for targeting body parts?
         </legend>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -425,6 +559,9 @@ export function ScheduleForm({
             </label>
           ))}
         </div>
+        {formErrors.bodyPlanChoice ? (
+          <p className="text-xs text-rose-200">{formErrors.bodyPlanChoice}</p>
+        ) : null}
 
         {targetAllBodyParts === "yes" ? (
           <div className="rounded-2xl border border-emerald-300/35 bg-emerald-300/10 px-4 py-3 text-sm text-emerald-100">
@@ -471,14 +608,30 @@ export function ScheduleForm({
             ))}
           </div>
         ) : null}
+        {targetAllBodyParts === "no" && formErrors.specificBodyParts ? (
+          <p className="text-xs text-rose-200">
+            {formErrors.specificBodyParts}
+          </p>
+        ) : null}
       </fieldset>
 
       <button
         type="submit"
-        className="inline-flex w-full items-center justify-center rounded-2xl bg-linear-to-r from-cyan-300 via-sky-300 to-emerald-300 px-5 py-4 text-sm font-semibold text-slate-950 transition duration-300 hover:brightness-110"
+        className="inline-flex w-full cursor-pointer items-center justify-center rounded-2xl bg-linear-to-r from-cyan-300 via-sky-300 to-emerald-300 px-5 py-4 text-sm font-semibold text-slate-950 transition duration-300 hover:brightness-110"
       >
         Create schedule
       </button>
+
+      {scheduleError ? (
+        <div className="rounded-2xl border border-rose-300/40 bg-rose-300/10 px-4 py-3 text-sm text-rose-100">
+          {scheduleError}
+        </div>
+      ) : null}
+
+      <SchedulePreviewCarousel
+        days={schedulePreview}
+        difficulty={form.difficulty}
+      />
     </form>
   );
 }
