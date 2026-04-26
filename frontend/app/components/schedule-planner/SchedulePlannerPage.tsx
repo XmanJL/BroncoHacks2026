@@ -25,7 +25,7 @@ export function SchedulePlannerPage() {
   const title =
     "Build a schedule that fits your week, your space, and your goals.";
   const description =
-    "Tell the planner what equipment you have, how much time you can train, and what you want to improve, then it creates a realistic weekly path. It balances recovery, muscle groups, and your availability so the plan feels doable instead of generic.";
+    "Feeling lost on how to make a schedule? Tell the planner what equipment you have, how much time you can train, and what you want to improve. Then it'll create a realistic weekly path. It balances recovery, muscle groups, and your availability so the plan feels doable instead of generic.";
 
   return (
     <main className="relative min-h-screen overflow-hidden text-slate-100">

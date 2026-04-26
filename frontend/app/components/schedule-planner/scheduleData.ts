@@ -9,47 +9,53 @@ export const weekDays = [
 ] as const;
 
 export const exerciseOptions = [
-  "waist",
-  "upper legs",
-  "back",
-  "lower legs",
   "chest",
-  "upper arms",
-  "cardio",
   "shoulders",
+  "back",
+  "upper arms",
   "lower arms",
   "neck",
+  "upper legs",
+  "lower legs",
+  "waist",
+  "cardio",
 ] as const;
 
+// Bodyweight / unweighted, Free weights / barbells / plates, Machines (strength), Functional / accessories, Cardio machines, Misc / other
 export const equipmentOptions = [
   "body weight",
+  "assisted",
+  
+  "barbell",
+  "olympic barbell",
+  "ez barbell",
+  "trap bar",
+  "dumbbell",
+  "kettlebell",
+  "weighted",
+
   "cable",
   "leverage machine",
-  "assisted",
+  "smith machine",
+  "sled machine",
+
+  "band",
+  "resistance band",
   "medicine ball",
   "stability ball",
-  "band",
-  "barbell",
-  "rope",
-  "dumbbell",
-  "ez barbell",
-  "sled machine",
-  "upper body ergometer",
-  "kettlebell",
-  "olympic barbell",
-  "weighted",
   "bosu ball",
-  "resistance band",
+  "rope",
   "roller",
-  "skierg machine",
-  "hammer",
-  "smith machine",
   "wheel roller",
+  "hammer",
+
   "stationary bike",
-  "tire",
-  "trap bar",
   "elliptical machine",
   "stepmill machine",
+  "skierg machine",
+  "upper body ergometer",
+
+  "tire",
 ] as const;
 
 export type ExerciseOption = (typeof exerciseOptions)[number];
@@ -64,11 +70,11 @@ export type DayPlan = {
 };
 
 export const initialDayPlans: Record<DayName, DayPlan> = {
-  Mon: { active: true, hours: "0", minutes: "45" },
-  Tue: { active: true, hours: "0", minutes: "45" },
+  Mon: { active: true, hours: "0", minutes: "30" },
+  Tue: { active: true, hours: "0", minutes: "30" },
   Wed: { active: true, hours: "0", minutes: "30" },
-  Thu: { active: true, hours: "0", minutes: "45" },
-  Fri: { active: true, hours: "0", minutes: "45" },
+  Thu: { active: true, hours: "0", minutes: "30" },
+  Fri: { active: true, hours: "0", minutes: "30" },
   Sat: { active: false, hours: "0", minutes: "30" },
   Sun: { active: false, hours: "0", minutes: "30" },
 };

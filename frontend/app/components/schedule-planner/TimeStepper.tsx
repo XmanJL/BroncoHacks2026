@@ -29,18 +29,9 @@ export function TimeStepper({
     <div
       role="group"
       aria-label={`${label} controls`}
-      className="flex flex-nowrap items-center gap-2"
+      className="flex items-center gap-2"
     >
-      <button
-        type="button"
-        onClick={onDecrement}
-        disabled={isDisabled}
-        className="h-9 w-9 rounded-xl border border-white/20 bg-black/40 text-lg leading-none text-white transition hover:border-cyan-300 hover:bg-cyan-400/20 hover:text-cyan-100 hover:shadow-[0_0_14px_rgba(34,211,238,0.45)] disabled:cursor-not-allowed disabled:opacity-45"
-        aria-label={`Decrease ${label}`}
-      >
-        -
-      </button>
-
+      {/* Hours + Minutes */}
       <label className="sr-only" htmlFor={`${label}-hours`}>
         Hours
       </label>
@@ -50,9 +41,7 @@ export function TimeStepper({
         disabled={isDisabled}
         onChange={(event) => onHoursChange(event.target.value)}
         onKeyDown={(event) => {
-          if (isDisabled) {
-            return;
-          }
+          if (isDisabled) return;
 
           if (event.key === "ArrowUp") {
             event.preventDefault();
@@ -87,9 +76,7 @@ export function TimeStepper({
         disabled={isDisabled}
         onChange={(event) => onMinutesChange(event.target.value)}
         onKeyDown={(event) => {
-          if (isDisabled) {
-            return;
-          }
+          if (isDisabled) return;
 
           if (event.key === "ArrowUp") {
             event.preventDefault();
@@ -111,15 +98,28 @@ export function TimeStepper({
         ))}
       </select>
 
-      <button
-        type="button"
-        onClick={onIncrement}
-        disabled={isDisabled}
-        className="h-9 w-9 rounded-xl border border-white/20 bg-black/40 text-lg leading-none text-white transition hover:border-cyan-300 hover:bg-cyan-400/20 hover:text-cyan-100 hover:shadow-[0_0_14px_rgba(34,211,238,0.45)] disabled:cursor-not-allowed disabled:opacity-45"
-        aria-label={`Increase ${label}`}
-      >
-        +
-      </button>
+      {/* Stacked + / - buttons */}
+      <div className="flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={onIncrement}
+          disabled={isDisabled}
+          className="h-4 w-9 rounded-xl border border-white/20 bg-black/40 text-xs leading-none text-white transition hover:border-cyan-300 hover:bg-cyan-400/20 hover:text-cyan-100 hover:shadow-[0_0_14px_rgba(34,211,238,0.45)] disabled:cursor-not-allowed disabled:opacity-45"
+          aria-label={`Increase ${label}`}
+        >
+          +
+        </button>
+
+        <button
+          type="button"
+          onClick={onDecrement}
+          disabled={isDisabled}
+          className="h-4 w-9 rounded-xl border border-white/20 bg-black/40 text-xs leading-none text-white transition hover:border-cyan-300 hover:bg-cyan-400/20 hover:text-cyan-100 hover:shadow-[0_0_14px_rgba(34,211,238,0.45)] disabled:cursor-not-allowed disabled:opacity-45"
+          aria-label={`Decrease ${label}`}
+        >
+          -
+        </button>
+      </div>
     </div>
   );
 }
